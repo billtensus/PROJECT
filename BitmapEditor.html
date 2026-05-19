@@ -156,6 +156,7 @@
     <h3>Actions</h3>
     <div class="tools">
       <button class="btn red" onclick="clearCanvas()">✕ Clear</button>
+      <button class="btn" onclick="undo()">↩ Undo</button>
       <button class="btn" onclick="copyAsm()">⎘ Copy ASM</button>
     </div>
   </div>
@@ -175,6 +176,9 @@
 <script>
 const COLS=64,ROWS=64,FB=16384,SZ=8;
 const pixels=new Array(ROWS*COLS).fill(null);
+const undoStack=[];
+function saveUndo(){undoStack.push(pixels.slice());if(undoStack.length>50)undoStack.shift();}
+function undo(){if(!undoStack.length)return;const prev=undoStack.pop();for(let i=0;i<pixels.length;i++){pixels[i]=prev[i];cells[i].style.background=prev[i]===null?'':rgb565ToCSS(prev[i]);}updateAsm();}
 let tool='draw',painting=false,brushSize=1;
 let charMode=false,shapeMode=false,activeShape='rect',shapeRotation=0;
 let showSeg=true,showNums=true,darkMode=false;
@@ -310,9 +314,9 @@ container.addEventListener('mousedown',e=>{
   e.preventDefault();
   const{col,row}=getPos(e);
   if(col<0||col>=COLS||row<0||row>=ROWS) return;
-  if(charMode){stampChar(col,row);return;}
-  if(shapeMode){stampShape(col,row);return;}
-  painting=true; applyDraw(row*COLS+col);
+  if(charMode){saveUndo();stampChar(col,row);return;}
+  if(shapeMode){saveUndo();stampShape(col,row);return;}
+  painting=true; saveUndo(); applyDraw(row*COLS+col);
 });
 container.addEventListener('mouseleave',()=>clearOverlay());
 document.addEventListener('mouseup',()=>painting=false);
@@ -523,7 +527,7 @@ function toggleDark(){
   document.getElementById('tb-dark').classList.toggle('active',darkMode);
 }
 
-function clearCanvas(){pixels.fill(null);cells.forEach(c=>c.style.background='');updateAsm();}
+function clearCanvas(){saveUndo();pixels.fill(null);cells.forEach(c=>c.style.background='');updateAsm();}
 function clearOverlay(){overlay.innerHTML='';}
 
 function updateCoords(col,row,i){
